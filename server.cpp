@@ -25,6 +25,17 @@ char read_str[200];
 int pipefd[2];
 int pipefd2[2];
 int msgsock;
+struct Process{
+    int pid;
+    char name[200];
+    int ppid;
+    time_t starttime;
+    bool active;
+    time_t endtime;
+    double elapsed_time;
+};
+list<Process> li;
+bool child = false;
 struct client_han{
     int pid;
     char* cli_adr;
@@ -48,6 +59,49 @@ void *read_cl(void* fd){
         if(strcmp("print_hello",str_t) == 0){
             int c = write(msgsock," Hello",6);
         }
+         if(strcmp("list",str_t) == 0){
+            list <Process> :: iterator it;
+    for(it = li.begin(); it != li.end(); ++it) {
+            if(it->active == 1){
+            it->elapsed_time = difftime(time(0),it->starttime);
+             char pi[200];
+             int lpi = sprintf(pi,"%d",it->pid);
+
+            write(pipefd2[1],"Process Id:",11);
+            write(pipefd2[1],pi,lpi);
+            write(pipefd2[1],"\n",1);
+            write(pipefd2[1],"Name:",5);
+            write(pipefd2[1],it->name,strlen(it->name));
+            write(pipefd2[1],"\n",1);
+            lpi = sprintf(pi,"%d",it->ppid);
+            write(pipefd2[1],"Parent's Process Id:",20);
+            write(pipefd2[1],pi,lpi);
+            write(pipefd2[1],"\n",1);
+            char st[200];
+            strcpy(st,ctime(&it ->  starttime));
+            write(pipefd2[1],"Start time:",11);
+            write(pipefd2[1],st,strlen(st));
+            int et = 0;
+            lpi = sprintf(pi,"%d",et);
+            write(pipefd2[1],"End time:",9);
+            write(pipefd2[1],"-",1);
+            write(pipefd2[1],"\n",1);
+            lpi = sprintf(pi,"%f",it->elapsed_time);
+            pi[lpi-1] = 's';
+            pi[lpi] = '\0';
+           write(pipefd2[1],"Elapsed time:",13);
+           write(pipefd2[1],pi,lpi);
+            write(pipefd2[1],"\n",1);
+            write(pipefd2[1],"===============================\n",33);
+            }
+            }
+            int ch = write(pipefd2[1],"#",1);
+                  if(ch == -1){
+                    perror("Error write in pipe: ");
+                    exit(0);
+
+                }
+        }
     }
 }
 void *read_conn(void *msg){
@@ -55,7 +109,10 @@ void *read_conn(void *msg){
     while(true){
         int co = read(STDIN_FILENO,read_str,200);
         read_str[co - 1] ='\0';
-        if(strcmp(read_str,"conn_list") == 0){
+        if(co <= 3){
+            write(STDOUT_FILENO,"Invalid Command\n",16);
+        }
+        else if(strcmp(read_str,"conn_list") == 0){
             bool exi = false;
             list <client_han> :: iterator it;
             write(STDOUT_FILENO,"Connection list\n",16);
@@ -108,21 +165,80 @@ void *read_conn(void *msg){
                 write(STDOUT_FILENO,"PID doesn't exist in conn_list\n",31);
             }
             }
+            if(strcmp(token,"list") == 0){
+                bool exi = false;
+                token = strtok(NULL, " ");
+                if(token == NULL){
+                    list <client_han> :: iterator it;
+                for(it = ch_li.begin(); it != ch_li.end(); ++it) {
+                    exi = true;
+                    if(write(it->pfd[1],"list",4) < 0){
+                        perror("Error in pipe of conn");
+                    }
+                    //char lpi[200];
+                    char lstr[2000];
+                int c = read(it->pfd2[0],lstr,1000);
+                write(STDOUT_FILENO,"Active Processes for:",22);
+                char prpid[200];
+                int pidlen = sprintf(prpid,"%d",it->pid);
+                write(STDOUT_FILENO,prpid,pidlen);
+                write(STDOUT_FILENO,"\n",1);
+                while(true){
+                if(lstr[c - 1] == '#'){
+                    write(STDOUT_FILENO,lstr,c-2);
+                    break;
+                }
+                else{
+                write(STDOUT_FILENO,lstr,c);
+                //write()
+                c = read(it->pfd2[0],lstr,1000);
+                if(c == -1){
+                    perror("Error read in pipe child 1:");
+                    exit(0);
+                }
+                }
+                }
+            }
+             if(!exi){
+               write(STDOUT_FILENO,"No Connected Clients\n",21);
+            }
+        }
+        else{
 
+         list <client_han> :: iterator it;
+                     for(it = ch_li.begin(); it != ch_li.end(); ++it) {
+                if(it->pid == atoi(token)){
+                    write(it->pfd[1],"list",4);
+                    exi = true;
+                     char lstr[2000];
+                int c = read(it->pfd2[0],lstr,1000);
+                write(STDOUT_FILENO,"Active Processes for:",22);
+                char prpid[20];
+                int pidlen = sprintf(prpid,"%d",it->pid);
+                write(STDOUT_FILENO,prpid,pidlen);
+                write(STDOUT_FILENO,"\n",1);
+                while(true){
+                if(lstr[c - 1] == '#'){
+                    write(STDOUT_FILENO,lstr,c-2);
+                    break;
+                }
+                else{
+                write(STDOUT_FILENO,lstr,c);
+                c = read(it->pfd2[0],lstr,1000);
+                if(c == -1){
+                    perror("Error read in pipe child 1:");
+                    exit(0);
+                }
+                }
+                }
+                   }}
+            if(!exi){
+                write(STDOUT_FILENO,"PID doesn't exist in conn_list\n",31);
+            }
         }
     }
-}
-struct Process{
-    int pid;
-    char name[200];
-    int ppid;
-    time_t starttime;
-    bool active;
-    time_t endtime;
-    double elapsed_time;
-};
-list<Process> li;
-bool child = false;
+}}}
+
 static void signal_handler(int signo){
     if(signo == SIGCHLD){
         int status;

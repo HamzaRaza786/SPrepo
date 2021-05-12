@@ -38,7 +38,7 @@ list<Process> li;
 bool child = false;
 struct client_han{
     int pid;
-    char* cli_adr;
+    struct in_addr cli_adr;
     int po;
     int pfd[2];
     int msg;
@@ -123,7 +123,7 @@ void *read_conn(void *msg){
                 write(STDOUT_FILENO,pi,lpi);
                 write(STDOUT_FILENO,"\n",1);
                 write(STDOUT_FILENO,"Connection's IP Address: ",25);
-                write(STDOUT_FILENO,it->cli_adr,strlen(it->cli_adr));
+                write(STDOUT_FILENO,inet_ntoa(it->cli_adr),strlen(inet_ntoa(it->cli_adr)));
                 write(STDOUT_FILENO,"\n",1);
                 lpi = sprintf(pi,"%d",it->po);
                 write(STDOUT_FILENO,"Port Number: ",13);
@@ -156,7 +156,7 @@ void *read_conn(void *msg){
             for(it = ch_li.begin(); it != ch_li.end(); ++it) {
                 char temp[20];
                 if(it->pid == atoi(token)){
-                    write(it->pfd[1],"print_hello",11);
+                    write(it->msg,"print_hello\n",12);
                     exi = true;
 
                 }
@@ -243,15 +243,28 @@ static void signal_handler(int signo){
     if(signo == SIGCHLD){
         int status;
         if(!child){
+        //w = 1;
+       // while(w!=-1){
         int w = waitpid(0,&status,WNOHANG);
         write(STDOUT_FILENO,"Child Terminated\n",17);
+        //printf("%d",w);
+        //getchar();
+       /* char t[20];
+        int c = sprintf(t,"%d",w);
+        write(STDOUT_FILENO,t,c);
+        write(STDOUT_FILENO,"\n",1);*/
          list <client_han> :: iterator it;
             for(it = ch_li.begin(); it != ch_li.end(); ++it) {
                 if(it->pid == w){
                     close(it->msg);
+                   /* char t[20];
+                    int c = sprintf(t,"%d",it->msg);
+                    write(STDOUT_FILENO,"Msg Sock is:",12);
+                    write(STDOUT_FILENO,t,c);
+                    write(STDOUT_FILENO,"\n",1);*/
                     it = ch_li.erase(it);
                 }
-            }
+            }//}
         }
         else{
             int w = waitpid(0,&status,WNOHANG);
@@ -274,6 +287,7 @@ static void signal_handler(int signo){
                     kill(it2->pid,SIGTERM);
                }
              }
+             close(msgsock);
         exit(0);
     }
 }
@@ -395,7 +409,7 @@ char* mult(char* token,float sum){
 int main(void)
 {
 	int sock, length;
-	struct sockaddr_in server,cli;
+	struct sockaddr_in server;
 	//int msgsock;
 	char buf[1024];
 	int rval;
@@ -428,11 +442,20 @@ int main(void)
     signal(SIGKILL,signal_handler);
     signal(SIGTERM,signal_handler);
 	/* Start accepting connections */
-
-     socklen_t clilen = sizeof(cli);
+    pthread_t thread1;
+	int iret1;
+    iret1 = pthread_create( &thread1, NULL, read_conn, NULL);
+     if(iret1)
+     {
+         fprintf(stderr,"Error - pthread_create() return code: %d\n",iret1);
+         exit(EXIT_FAILURE);
+     }
+     pthread_detach(thread1);
      //int clilen;
 	listen(sock, 5);
 	do {
+        struct sockaddr_in cli;
+        socklen_t clilen = sizeof(cli);
         long time_g = time_cal();
         //list<Process> li;
         Process server = {getpid(),"Server",getppid(),time_g,true,time(0),difftime(time(0),time_g)};
@@ -445,26 +468,21 @@ int main(void)
         }
 		int pid = fork();
 		if(pid>0){
-        pthread_t thread1;
-	int iret1;
-    iret1 = pthread_create( &thread1, NULL, read_conn, NULL);
-     if(iret1)
-     {
-         fprintf(stderr,"Error - pthread_create() return code: %d\n",iret1);
-         exit(EXIT_FAILURE);
-     }
-     pthread_detach(thread1);
         close(pipefd[0]);
         close(pipefd2[1]);
         client_han p;
         p.pid = pid;
-        p.cli_adr = inet_ntoa(cli.sin_addr);
+        p.cli_adr = cli.sin_addr;
         p.po = ntohs(cli.sin_port);
         p.pfd[0] = pipefd[0];
         p.pfd[1] = pipefd[1];
         p.msg = msgsock;
         p.pfd2[0] = pipefd2[0];
         p.pfd2[1] = pipefd2[1];
+        //char t[20];
+        //int ct = sprintf(t,"%d",msgsock);
+        //write(STDOUT_FILENO,t,ct);
+        //write(STDOUT_FILENO,"\n",1);
         //printf("%d\n",ntohs(p.po));
         //printf("server: got connection from %s port %d\n",inet_ntoa(cli.sin_addr), ntohs(cli.sin_port));
         ch_li.push_back(p);

@@ -25,7 +25,6 @@ void *read_client(void *msg){
     wr = true;
             if(c == -1){
                 perror("Error write in socket");
-                //fin = true;
                 exit(0);
 
             }}
@@ -56,6 +55,7 @@ void *write_client(void *msg){
                     exit(0);
                 }
                 write(STDOUT_FILENO,"Active Processes:\n",18);
+                write(STDOUT_FILENO,"===============================\n",33);
                 while(true){
                 if(lstr[c - 1] == '#'){
                     write(STDOUT_FILENO,lstr,c-2);
@@ -84,6 +84,7 @@ void *write_client(void *msg){
                     exit(0);
                 }
                 write(STDOUT_FILENO,"All Processes:\n",15);
+                write(STDOUT_FILENO,"===============================\n",33);
                  while(true){
                 if(lstr[c - 1] == '#'){
                     write(STDOUT_FILENO,lstr,c-2);
@@ -98,13 +99,13 @@ void *write_client(void *msg){
                 }}
                  }
             }
+            else if(strcmp(temp,"9") == 0){
+            write(STDOUT_FILENO,"Server Closed\n",14);
+            exit(0);
+            }
             else{
-           // write(STDOUT_FILENO,"he\n",2);
             char sum2[200];
             int c = read(sock,sum2,1000);
-            //write(STDOUT_FILENO,sum2,c);
-           // printf("%d",c);
-            //getchar();
             if(c == -1){
                 perror("Error read in pipe child 1:");
                 exit(0);
@@ -119,7 +120,6 @@ void *write_client(void *msg){
             }
             else{
             int ch = write(STDOUT_FILENO,sum2,c);
-           // write(STDOUT_FILENO,"he\n",2);
             if(ch == -1){
                 perror("Error write:");
                 exit(0);
@@ -158,6 +158,7 @@ int main(int argc, char *argv[])
 		perror("connecting stream socket");
 		exit(1);
 	}
+	write(STDOUT_FILENO,"Connected Successfully\n",23);
 	pthread_t thread1,thread2;
 	int iret1,iret2;
     /*pthread_attr_t t1,t2;

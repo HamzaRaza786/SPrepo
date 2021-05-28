@@ -44,21 +44,35 @@ struct client_han{
     int msg;
     int pfd2[2];
 };
+bool strcheck(char* str){
+   for(int i = 0; str[i] != '\0';i++){
+       int ch = str[i];
+       int ch_1 = str[i + 1];
+       if (ch==45){
+        if(ch_1 == '\0'){
+        return false;
+       }
+         else if((ch_1 >= 33 && ch_1 <= 47 ) || (ch_1 >= 58 && ch_1 <= 126)){
+          return false;
+       }}
+       else if((ch >= 33 && ch <= 47 ) || (ch >= 58 && ch <= 126)){
+          return false;
+          }
+   }
+    return true;
+}
 list<client_han> ch_li;
 void *read_cl(void* fd){
     //int* a = (int *) fd;
     //int pfd = *a;
     while(true){
-        char str_t[200];
-        int c = read(pipefd[0],str_t,200);
+        char str_t[2000];
+        int c = read(pipefd[0],str_t,2000);
         if(c == 0){
             exit(0);
         }
         //sleep(1);
         str_t[c] = '\0';
-        if(strcmp("print_hello",str_t) == 0){
-            int c = write(msgsock," Hello",6);
-        }
          if(strcmp("list",str_t) == 0){
             list <Process> :: iterator it;
     for(it = li.begin(); it != li.end(); ++it) {
@@ -66,7 +80,6 @@ void *read_cl(void* fd){
             it->elapsed_time = difftime(time(0),it->starttime);
              char pi[200];
              int lpi = sprintf(pi,"%d",it->pid);
-
             write(pipefd2[1],"Process Id:",11);
             write(pipefd2[1],pi,lpi);
             write(pipefd2[1],"\n",1);
@@ -92,6 +105,7 @@ void *read_cl(void* fd){
            write(pipefd2[1],"Elapsed time:",13);
            write(pipefd2[1],pi,lpi);
             write(pipefd2[1],"\n",1);
+            write(pipefd2[1],"State: Active\n",14);
             write(pipefd2[1],"===============================\n",33);
             }
             }
@@ -109,6 +123,11 @@ void *read_conn(void *msg){
     while(true){
         int co = read(STDIN_FILENO,read_str,200);
         read_str[co - 1] ='\0';
+        char st[20];
+        char stri[2000];
+        strcpy(stri,read_str);
+        //int c = sscanf(read_str,"%s %s",st,st1);
+        char *token = strtok(stri," ");
         if(co <= 3){
             write(STDOUT_FILENO,"Invalid Command\n",16);
         }
@@ -136,36 +155,58 @@ void *read_conn(void *msg){
                 write(STDOUT_FILENO,"No Connected Clients\n",21);
             }
         }
-        else if(strcmp("print_hello all",read_str) == 0){
+        else if(strcmp("print",token) == 0){
+            token = strtok(NULL," ");
+            if(strcheck(token) == false && token != NULL){
             bool exi = false;
+            char str1[2000] = "";
+            while(token!=NULL){
+                    strcat(str1,token);
+                    strcat(str1," ");
+                    token = strtok(NULL," ");
+            }
             list <client_han> :: iterator it;
             for(it = ch_li.begin(); it != ch_li.end(); ++it) {
-                write(it->pfd[1],"print_hello",11);
+                write(it->msg,"4",1);
+                write(it->msg,str1,strlen(str1));
                 exi = true;
             }
         if(!exi){
                 write(STDOUT_FILENO,"No Connected Clients\n",21);
             }
         }
-        else{
-            char* token = strtok(read_str," ");
+        else if(strcheck(token) == true){
             bool exi = false;
-            if(strcmp(token,"print_hello") == 0){
-                token = strtok(NULL, " ");
+                if(token == NULL){
+                    write(STDOUT_FILENO,"Invalid command\n",16);
+                }
+                else{
+                int pid = atoi(token);
+                char str[2000] = "";
+                token = strtok(NULL," ");
+                while(token!=NULL){
+                    strcat(str,token);
+                    strcat(str," ");
+                    token = strtok(NULL," ");
+                }
                 list <client_han> :: iterator it;
             for(it = ch_li.begin(); it != ch_li.end(); ++it) {
                 char temp[20];
-                if(it->pid == atoi(token)){
-                    write(it->msg,"print_hello\n",12);
+                if(it->pid == pid){
+                    write(it->msg,"4",1);
+                    write(it->msg,str,strlen(str));
                     exi = true;
-
                 }
             }
             if(!exi){
                 write(STDOUT_FILENO,"PID doesn't exist in conn_list\n",31);
+            }}
             }
+            else{
+                write(STDOUT_FILENO,"Invalid command\n",16);
             }
-            if(strcmp(token,"list") == 0){
+        }
+            else if(strcmp(token,"list") == 0){
                 bool exi = false;
                 token = strtok(NULL, " ");
                 if(token == NULL){
@@ -175,7 +216,6 @@ void *read_conn(void *msg){
                     if(write(it->pfd[1],"list",4) < 0){
                         perror("Error in pipe of conn");
                     }
-                    //char lpi[200];
                     char lstr[2000];
                 int c = read(it->pfd2[0],lstr,1000);
                 write(STDOUT_FILENO,"Active Processes for:",22);
@@ -183,6 +223,7 @@ void *read_conn(void *msg){
                 int pidlen = sprintf(prpid,"%d",it->pid);
                 write(STDOUT_FILENO,prpid,pidlen);
                 write(STDOUT_FILENO,"\n",1);
+                write(STDOUT_FILENO,"===============================\n",33);
                 while(true){
                 if(lstr[c - 1] == '#'){
                     write(STDOUT_FILENO,lstr,c-2);
@@ -190,11 +231,9 @@ void *read_conn(void *msg){
                 }
                 else{
                 write(STDOUT_FILENO,lstr,c);
-                //write()
                 c = read(it->pfd2[0],lstr,1000);
                 if(c == -1){
                     perror("Error read in pipe child 1:");
-                    exit(0);
                 }
                 }
                 }
@@ -217,6 +256,7 @@ void *read_conn(void *msg){
                 int pidlen = sprintf(prpid,"%d",it->pid);
                 write(STDOUT_FILENO,prpid,pidlen);
                 write(STDOUT_FILENO,"\n",1);
+                write(STDOUT_FILENO,"===============================\n",33);
                 while(true){
                 if(lstr[c - 1] == '#'){
                     write(STDOUT_FILENO,lstr,c-2);
@@ -227,7 +267,6 @@ void *read_conn(void *msg){
                 c = read(it->pfd2[0],lstr,1000);
                 if(c == -1){
                     perror("Error read in pipe child 1:");
-                    exit(0);
                 }
                 }
                 }
@@ -237,34 +276,28 @@ void *read_conn(void *msg){
             }
         }
     }
-}}}
+}}
 
 static void signal_handler(int signo){
     if(signo == SIGCHLD){
         int status;
         if(!child){
-        //w = 1;
-       // while(w!=-1){
-        int w = waitpid(0,&status,WNOHANG);
+        int w = 1;
+        while(w>0){
+        w = waitpid(0,&status,WNOHANG);
+        if(w > 0){
         write(STDOUT_FILENO,"Child Terminated\n",17);
-        //printf("%d",w);
-        //getchar();
-       /* char t[20];
-        int c = sprintf(t,"%d",w);
-        write(STDOUT_FILENO,t,c);
-        write(STDOUT_FILENO,"\n",1);*/
          list <client_han> :: iterator it;
             for(it = ch_li.begin(); it != ch_li.end(); ++it) {
                 if(it->pid == w){
+                    write(it->msg,"9",1);
                     close(it->msg);
-                   /* char t[20];
-                    int c = sprintf(t,"%d",it->msg);
-                    write(STDOUT_FILENO,"Msg Sock is:",12);
-                    write(STDOUT_FILENO,t,c);
-                    write(STDOUT_FILENO,"\n",1);*/
                     it = ch_li.erase(it);
                 }
-            }//}
+            }
+            }
+
+        }
         }
         else{
             int w = waitpid(0,&status,WNOHANG);
@@ -280,13 +313,14 @@ static void signal_handler(int signo){
             }}
         }
     }
-    if(signo == SIGINT || signo == SIGKILL || signo == SIGTERM){
+    if(signo == SIGINT || signo == SIGTERM){
         list <Process> :: iterator it2;
             for(it2 = li.begin(); it2 != li.end(); ++it2) {
                if(it2->active == true){
                     kill(it2->pid,SIGTERM);
                }
              }
+             write(msgsock,"9",1);
              close(msgsock);
         exit(0);
     }
@@ -297,23 +331,7 @@ time_t now = time(0);
 //char* dt = ctime(&now);
 return now;
 }
-bool strcheck(char* str){
-   for(int i = 0; str[i] != '\0';i++){
-       int ch = str[i];
-       int ch_1 = str[i + 1];
-       if (ch==45){
-        if(ch_1 == '\0'){
-        return false;
-       }
-         else if((ch_1 >= 33 && ch_1 <= 47 ) || (ch_1 >= 58 && ch_1 <= 126)){
-          return false;
-       }}
-       else if((ch >= 33 && ch <= 47 ) || (ch >= 58 && ch <= 126)){
-          return false;
-          }
-   }
-    return true;
-}
+
 char* add(char* token,float sum){
     int val;
     while(token != NULL){
@@ -451,14 +469,13 @@ int main(void)
          exit(EXIT_FAILURE);
      }
      pthread_detach(thread1);
-     //int clilen;
 	listen(sock, 5);
 	do {
         struct sockaddr_in cli;
         socklen_t clilen = sizeof(cli);
         long time_g = time_cal();
         //list<Process> li;
-        Process server = {getpid(),"Server",getppid(),time_g,true,time(0),difftime(time(0),time_g)};
+        //Process server = {getpid(),"Server",getppid(),time_g,true,time(0),difftime(time(0),time_g)};
 		msgsock = accept(sock, (struct sockaddr *) &cli, &clilen);
         if(pipe(pipefd) < 0){
             perror("Error in pipe:");
@@ -479,15 +496,7 @@ int main(void)
         p.msg = msgsock;
         p.pfd2[0] = pipefd2[0];
         p.pfd2[1] = pipefd2[1];
-        //char t[20];
-        //int ct = sprintf(t,"%d",msgsock);
-        //write(STDOUT_FILENO,t,ct);
-        //write(STDOUT_FILENO,"\n",1);
-        //printf("%d\n",ntohs(p.po));
-        //printf("server: got connection from %s port %d\n",inet_ntoa(cli.sin_addr), ntohs(cli.sin_port));
         ch_li.push_back(p);
-        int status;
-         waitpid(0,&status,WNOHANG);
 		}
 		if(pid==0){
         close(pipefd[1]);
@@ -495,8 +504,6 @@ int main(void)
         int ppid = getppid();
         pthread_t thread2;
         int iret2;
-       // int *i = malloc(sizeof(*i));
-        //*i = pipefd[0]
         iret2 = pthread_create( &thread2, NULL, read_cl, NULL);
         if(iret2)
         {
@@ -504,24 +511,13 @@ int main(void)
          exit(EXIT_FAILURE);
         }
      pthread_detach(thread2);
-   //  socklen_t clilen = sizeof(cli);
 		if (msgsock == -1)
 			perror("accept");
 		else do {
         child = true;
-       /* int ppid2 = kill(ppid,0);
-        if(ppid2!=0){
-           list <Process> :: iterator it2;
-            for(it2 = li.begin(); it2 != li.end(); ++it2) {
-               if(it2->active == true){
-                    kill(it2->pid,SIGTERM);
-               }
-             }
-        exit(0);
-        }*/
 			bzero(buf, sizeof(buf));
 			if ((rval = read(msgsock, buf, 1024)) < 0){
-                write(STDOUT_FILENO,buf,rval);
+                //write(STDOUT_FILENO,buf,rval);
 				perror("reading stream message");
 				}
 			if (rval == 0){
@@ -696,7 +692,13 @@ int main(void)
                 write(msgsock, "Complete the Command",20 );
             }
         else{
+
         char* p = token;
+        token = strtok(NULL," ");
+        if(token != NULL) {
+                write(msgsock,"Invalid Command",15);
+        }
+        else{
         char *paramlist[] = {p,NULL};
         int pifd3[2];
         int p1 = pipe2(pifd3,O_CLOEXEC);
@@ -742,7 +744,7 @@ int main(void)
                 exit(0);
             }
         }}
-    }
+    }}
     }
 	else if(strcmp(token,"list") == 0){
         token = strtok(NULL," ");
@@ -779,6 +781,7 @@ int main(void)
            write(msgsock,"Elapsed time:",13);
            write(msgsock,pi,lpi);
             write(msgsock,"\n",1);
+            write(msgsock,"State: Active\n",14);
             write(msgsock,"===============================\n",33);
             }
             }
@@ -827,6 +830,7 @@ int main(void)
            write(msgsock,"Elapsed time:",13);
            write(msgsock,pi,lpi);
             write(msgsock,"\n",1);
+            write(msgsock,"State: Active\n",14);
             write(msgsock,"===============================\n",33);
             }
             else{
@@ -857,6 +861,7 @@ int main(void)
            write(msgsock,"Elapsed time:",13);
            write(msgsock,pi,lpi);
             write(msgsock,"\n",1);
+            write(msgsock,"State: Closed\n",14);
             write(msgsock,"===============================\n",33);
 			}
      }
@@ -892,7 +897,7 @@ int main(void)
             int status;
             for(it = li.begin(); it != li.end(); ++it) {
             if(strcmp(it->name,token) == 0 && it->active == true){
-             if(strcmp(it->name,"Server") == 0){
+            /* if(strcmp(it->name,"Server") == 0){
                   list <Process> :: iterator it2;
             for(it2 = li.begin(); it2 != li.end(); ++it2) {
                if(it2->active == true && strcmp(it2->name,"Server") != 0 && strcmp(it2->name,"Client") != 0){
@@ -901,7 +906,7 @@ int main(void)
              }
              write(msgsock,"exit",4);
              exit(0);
-             }
+             }*/
               find = true;
               int k = kill(it->pid,SIGTERM);
               if(k==-1){
@@ -912,7 +917,6 @@ int main(void)
               it->active = false;
               it->endtime = time(0);
               it->elapsed_time = difftime(it->endtime,it->starttime);
-            if (strcmp(it->name,"Client") != 0){
              int w = waitpid(it-> pid,&status, WUNTRACED | WCONTINUED);
              if(w==-1){
                 perror("Error in wait");
@@ -920,8 +924,8 @@ int main(void)
               }
               else{
             write(msgsock,"Terminated Successfully",23);
-               }}
-            else{
+               }
+           /* else{
                  list <Process> :: iterator it2;
             for(it2 = li.begin(); it2 != li.end(); ++it2) {
                if(it2->active == true && strcmp(it2->name,"Server") != 0 ){
@@ -929,7 +933,7 @@ int main(void)
                }
               }
               exit(0);
-               }
+               }*/
                }
               break;
         }

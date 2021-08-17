@@ -1,0 +1,8 @@
+# depslib dependency file v1.0
+1615841653 source:/home/hamza/SystemsProgramming/week7/main.cpp
+	<iostream>
+	<fcntl.h>
+	<unistd.h>
+	<fcntl.h>
+	<cstring>
+

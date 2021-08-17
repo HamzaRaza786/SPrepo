@@ -1,0 +1,13 @@
+# depslib dependency file v1.0
+1617817170 source:/home/hamza/SystemsProgramming/Assign6/main.cpp
+	<iostream>
+	<unistd.h>
+	<cstring>
+	<signal.h>
+	<list>
+	<iterator>
+	<ctime>
+	<fcntl.h>
+	<stdio.h>
+	<wait.h>
+

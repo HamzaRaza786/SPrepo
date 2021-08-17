@@ -1,0 +1,7 @@
+# depslib dependency file v1.0
+1616455415 source:/home/hamza/SystemsProgramming/Assign5/main.cpp
+	<iostream>
+	<unistd.h>
+	<cstring>
+	<signal.h>
+

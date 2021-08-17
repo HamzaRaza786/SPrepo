@@ -1,0 +1,7 @@
+# depslib dependency file v1.0
+1614012323 source:/home/hamza/SystemsProgramming/Assignment2/main.cpp
+	<iostream>
+	<stdarg.h>
+	<unistd.h>
+	<cstring>
+

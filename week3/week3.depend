@@ -1,0 +1,9 @@
+# depslib dependency file v1.0
+1613453795 source:/home/hamza/SystemsProgramming/week3/main.cpp
+	<iostream>
+	<fstream>
+	<fcntl.h>
+	<unistd.h>
+	<errno.h>
+	<err.h>
+
